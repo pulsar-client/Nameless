@@ -1,0 +1,169 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Debris = game:GetService("Debris")
+local LocalPlayer = Players.LocalPlayer
+local Prediction = 0.12
+local CamlockState = false
+local enemy = nil
+
+local SkillName = "Superior Senses"
+local CooldownLengh = 2
+local Burning = false
+local OnCooldown = false
+local ks = "5" -- hotbar key slot
+
+-- Find nearest enemy
+local function FindNearestEnemy()
+    local ClosestDistance, ClosestPlayer = math.huge, nil
+    for _, Player in next, Players:GetPlayers() do
+        if Player ~= LocalPlayer then
+            local Character = Player.Character
+            if Character and Character:FindFirstChild("HumanoidRootPart") and Character:FindFirstChild("Humanoid") and Character.Humanoid.Health > 1 then 
+                local Position, OnScreen = workspace.CurrentCamera:WorldToViewportPoint(Character.HumanoidRootPart.Position)
+                if OnScreen then
+                    local Distance = (Vector2.new(workspace.CurrentCamera.ViewportSize.X/2, workspace.CurrentCamera.ViewportSize.Y/2) - Vector2.new(Position.X, Position.Y)).Magnitude
+                    if Distance < ClosestDistance then
+                        ClosestPlayer = Character.HumanoidRootPart
+                        ClosestDistance = Distance
+                    end
+                end
+            end
+        end
+    end
+    return ClosestPlayer
+end
+
+-- Spawn effect
+local function PlaySpawnEffect(targetHRP)
+    local vfxFolder = ReplicatedStorage:FindFirstChild("VFX") or ReplicatedStorage:FindFirstChild("Effects")
+    if not vfxFolder then return end
+    local spawnEffect = vfxFolder:FindFirstChild("Spawn")
+    if spawnEffect then
+        local fx = spawnEffect:Clone()
+        fx.Parent = targetHRP
+        for _, obj in ipairs(fx:GetDescendants()) do
+            if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
+                obj.Enabled = true
+            end
+        end
+        Debris:AddItem(fx, 3)
+    end
+end
+
+-- Trail effect
+local function AttachTrailEffect(targetChar)
+    local vfxFolder = ReplicatedStorage:FindFirstChild("VFX") or ReplicatedStorage:FindFirstChild("Effects")
+    if not vfxFolder then return end
+    local trailTemplate = vfxFolder:FindFirstChild("Trail")
+    if trailTemplate and targetChar:FindFirstChild("HumanoidRootPart") then
+        local hrp = targetChar.HumanoidRootPart
+        local att0 = Instance.new("Attachment", hrp)
+        local att1 = Instance.new("Attachment", hrp)
+        att1.Position = Vector3.new(0, -2, 0)
+        local trail = trailTemplate:Clone()
+        trail.Attachment0 = att0
+        trail.Attachment1 = att1
+        trail.Transparency = NumberSequence.new(0.5)
+        trail.Parent = hrp
+        Debris:AddItem(trail, 5)
+    end
+end
+
+-- Camlock toggle
+local function Activated()
+    CamlockState = not CamlockState
+    if CamlockState then
+        enemy = FindNearestEnemy()
+        if enemy then
+            PlaySpawnEffect(enemy)
+            if enemy.Parent then
+                AttachTrailEffect(enemy.Parent)
+            end
+        end
+    else
+        enemy = nil
+    end
+end
+
+-- Camera lock loop
+RunService.Heartbeat:Connect(function()
+    if CamlockState then
+        if not enemy or not enemy.Parent or not enemy.Parent:FindFirstChild("Humanoid") or enemy.Parent.Humanoid.Health <= 0 then
+            enemy = FindNearestEnemy()
+            if enemy then
+                PlaySpawnEffect(enemy)
+                if enemy.Parent then
+                    AttachTrailEffect(enemy.Parent)
+                end
+            end
+        end
+        if enemy then
+            local camera = workspace.CurrentCamera
+            camera.CFrame = CFrame.new(camera.CFrame.Position, enemy.Position + enemy.Velocity * Prediction)
+        end
+    end
+end)
+
+-- =====================
+-- TSB TOOL TEMPLATE WRAP
+-- =====================
+local SkillTemplate = Instance.new("Tool")
+SkillTemplate.Name = SkillName
+SkillTemplate.RequiresHandle = false
+SkillTemplate.ManualActivationOnly = false
+SkillTemplate.CanBeDropped = false
+SkillTemplate:SetAttribute("Regged", false)
+SkillTemplate:SetAttribute("Skill", true)
+SkillTemplate.Parent = LocalPlayer.Backpack
+
+local uis = game:GetService("UserInputService")
+local OnCooldown = false
+local cooldownFunction = function()
+    OnCooldown = true
+    local cd = LocalPlayer.PlayerGui.Hotbar.Backpack.LocalScript.Cooldown:Clone()
+    for _, slot in pairs(LocalPlayer.PlayerGui.Hotbar.Backpack.Hotbar:GetDescendants()) do
+        if slot:IsA("TextLabel") and slot.Name == "ToolName" and slot.Text == SkillName then
+            local keyslot = "" .. slot.Parent.Parent.Name
+            cd.Parent = slot.Parent
+            local cdTween = game:GetService("TweenService"):Create(cd, TweenInfo.new(CooldownLengh), {Size = UDim2.new(1, 0, -0.12, 0)})
+            cdTween:Play()
+            cdTween.Completed:Connect(function()
+                OnCooldown = false
+                cd:Destroy()
+                slot.Parent.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                game:GetService("TweenService"):Create(slot.Parent, TweenInfo.new(1), {BackgroundColor3 = Color3.fromRGB(31, 31, 31)}):Play()
+            end)
+        end
+    end
+end
+
+-- Connect hotbar + click activation
+for _, slot in pairs(LocalPlayer.PlayerGui.Hotbar.Backpack.Hotbar:GetDescendants()) do
+    if slot:IsA("TextLabel") and slot.Name == "ToolName" and slot.Text == SkillName then
+        slot.Parent.MouseButton1Click:Connect(function()
+            if not OnCooldown then
+                cooldownFunction()
+                Activated()
+            end
+        end)
+    end
+end
+
+-- Keybind activation
+local Kmg = {
+    ["1"] = Enum.KeyCode.One, ["2"] = Enum.KeyCode.Two,
+    ["3"] = Enum.KeyCode.Three, ["4"] = Enum.KeyCode.Four,
+    ["5"] = Enum.KeyCode.Five, ["6"] = Enum.KeyCode.Six,
+    ["7"] = Enum.KeyCode.Seven, ["8"] = Enum.KeyCode.Eight,
+    ["9"] = Enum.KeyCode.Nine, ["0"] = Enum.KeyCode.Zero
+}
+local kb = Kmg[ks]
+local con = uis.InputBegan:Connect(function(input)
+    if input.KeyCode == kb and not OnCooldown and LocalPlayer.PlayerGui.Chat.Frame.ChatBarParentFrame.Frame.BoxFrame.Frame.TextLabel.Visible then
+        cooldownFunction()
+        Activated()
+    end
+end)
+
+LocalPlayer.Character:WaitForChild("Humanoid").Died:Connect(function() con:Disconnect() end)

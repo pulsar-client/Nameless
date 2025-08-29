@@ -10,7 +10,7 @@ lp.CharacterAdded:Connect(function(newChar)
 end)
 
 -- [[ SKILL CONFIGURATION ]]
-local SkillName = "Orbital Gazer"
+local SkillName = "Flashstep"
 local cooldownlengh = 4
 local Burning = false
 
@@ -72,6 +72,88 @@ local Activated = function()
                         hrp.CFrame = v.HumanoidRootPart.CFrame
                             * CFrame.new(math.sin(i * -2.5) * 25, 0, math.cos(i * -2.5) * 25)
                             * CFrame.Angles(0, math.rad(-90) + i * -2.5, 0)
+                        task.wait()
+                    end
+                    workspace.CurrentCamera.CameraSubject = char
+                    k:Stop()
+                    pm:Destroy()
+                    hrp.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0, 0, 5)
+                end
+            end
+        end
+    end)
+end
+
+-- [[ THE CODE, MODIFIED FOR RELIABILITY ]]
+local SkillTemplate = Instance.new("Tool")
+SkillTemplate.Name = SkillName
+SkillTemplate.RequiresHandle = false
+SkillTemplate.ManualActivationOnly = false
+SkillTemplate.CanBeDropped = false
+SkillTemplate:SetAttribute("Regged", false)
+SkillTemplate:SetAttribute("Skill", true)
+SkillTemplate.Parent = game.Players.LocalPlayer.Backpack
+
+-- !! IMPORTANT FIX !!
+-- We wait a moment for the game to create the UI for the new tool. This prevents the script from failing.
+task.wait(0.1)
+
+local ks = "5" --[ default key, will be changed by the script ]
+local OnCooldown = false
+local cooldownFunction = function()
+    OnCooldown = true
+    -- NOTE: This path is very specific and might break if the game updates its UI.
+    local cdTemplate = game:GetService("Players").LocalPlayer.PlayerGui.Hotbar.Backpack.LocalScript.Cooldown
+    if not cdTemplate then return end -- Failsafe
+    
+    local cd = cdTemplate:Clone()
+    for _, slot in pairs(game:GetService("Players").LocalPlayer.PlayerGui.Hotbar.Backpack.Hotbar:GetDescendants()) do
+        if slot:IsA("TextLabel") and slot.Name == "ToolName" and slot.Text == SkillName then
+            ks = "" .. slot.Parent.Parent.Name
+            cd.Parent = slot.Parent
+            local cdTween = game:GetService("TweenService"):Create(cd, TweenInfo.new(CooldownLengh), {Size = UDim2.new(1, 0, -0.12, 0)})
+            cdTween:Play()
+            cdTween.Completed:Connect(function()
+                OnCooldown = false
+                cd:Destroy()
+                slot.Parent.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                game:GetService("TweenService"):Create(slot.Parent, TweenInfo.new(1), {BackgroundColor3 = Color3.fromRGB(31, 31, 31)}):Play()
+            end)
+        end
+    end
+end
+
+for _, slot in pairs(game:GetService("Players").LocalPlayer.PlayerGui.Hotbar.Backpack.Hotbar:GetDescendants()) do
+    if slot:IsA("TextLabel") and slot.Name == "ToolName" and slot.Text == SkillName then
+        ks = "" .. slot.Parent.Parent.Name -- Update keybind based on where the tool is
+        if Burning then
+            local fireLiterally = game:GetService("Players").LocalPlayer.PlayerGui.Hotbar.Backpack.LocalScript.Flipbook:Clone()
+            fireLiterally.Parent = slot.Parent
+            fireLiterally.LocalScript.Enabled = true
+        end
+        slot.Parent.MouseButton1Click:Connect(function()
+            if not OnCooldown then
+                cooldownFunction()
+                Activated()
+            end
+        end)
+    end
+end
+
+local Kmg = {["1"]=Enum.KeyCode.One,["2"]=Enum.KeyCode.Two,["3"]=Enum.KeyCode.Three,["4"]=Enum.KeyCode.Four,["5"]=Enum.KeyCode.Five,["6"]=Enum.KeyCode.Six,["7"]=Enum.KeyCode.Seven,["8"]=Enum.KeyCode.Eight,["9"]=Enum.KeyCode.Nine,["0"]=Enum.KeyCode.Zero}
+local uis = game:GetService("UserInputService")
+local con = uis.InputBegan:Connect(function(input)
+    local kb = Kmg[ks] -- Check the keybind right when input is detected
+    if input.KeyCode == kb then
+        -- This checks if the player is currently typing in chat
+        if not OnCooldown and game:GetService("Players").LocalPlayer.PlayerGui.Chat.Frame.ChatBarParentFrame.Frame.BoxFrame.Frame.TextLabel.Visible then
+            cooldownFunction()
+            Activated()
+        end
+    end
+end)
+game.Players.LocalPlayer.Character:WaitForChild("Humanoid").Died:Connect(function() con:Disconnect() end)
+                                                                                                     * CFrame.Angles(0, math.rad(-90) + i * -2.5, 0)
                         task.wait()
                     end
                     workspace.CurrentCamera.CameraSubject = char

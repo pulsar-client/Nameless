@@ -10,7 +10,7 @@ lp.CharacterAdded:Connect(function(newChar)
 end)
 
 -- [[ SKILL CONFIGURATION ]]
-local SkillName = "Flashstep"
+local SkillName = "Orbital Gazer"
 local cooldownlengh = 4
 local Burning = false
 

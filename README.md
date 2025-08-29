@@ -14,7 +14,9 @@ A Moveset script for the Roblox game TSB that was originally inspired by a chara
 # Sign meanings:-
 
 -: 🟰 (In-Progress)
--: ➕ (Completed
+
+-: ➕ (Completed)
+
 -: ➖ (Not started)
 
 ----------------------------------------------------------------

@@ -9,7 +9,7 @@ A move set script designed for the Roblox game, **The Strongest Battlegrounds (T
 
 ---
 
-## 🗺️ Project Status: 🟡
+## 🗺️ Project Status: 🔴
 
 This project is actively being developed. You can track the progress and upcoming features on our public project board:
 
